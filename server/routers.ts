@@ -28,6 +28,110 @@ async function createNotification(
   await db.insert(notifications).values({ userId, title, message, type, relatedId, relatedType });
 }
 
+async function notifyUsers(
+  userIds: number[],
+  title: string,
+  message: string,
+  type: "INFO" | "SUCCESS" | "WARNING" | "ERROR" | "KPI_ASSIGNED" | "KPI_SUBMITTED" | "KPI_APPROVED" | "KPI_REJECTED" | "ANOMALY_DETECTED",
+  relatedId?: number,
+  relatedType?: string
+) {
+  const db = await getDb();
+  if (!db) return;
+  const uniqueIds = Array.from(new Set(userIds.filter(Boolean)));
+  for (const userId of uniqueIds) {
+    await db.insert(notifications).values({ userId, title, message, type, relatedId, relatedType });
+  }
+}
+
+async function broadcastNotification(
+  title: string,
+  message: string,
+  type: "INFO" | "SUCCESS" | "WARNING" | "ERROR" | "KPI_ASSIGNED" | "KPI_SUBMITTED" | "KPI_APPROVED" | "KPI_REJECTED" | "ANOMALY_DETECTED",
+  relatedId?: number,
+  relatedType?: string
+) {
+  const db = await getDb();
+  if (!db) return;
+  const recipients = await db.select({ id: users.id }).from(users).where(eq(users.status, "ACTIVE"));
+  await Promise.all(recipients.map(recipient => db.insert(notifications).values({
+    userId: recipient.id,
+    title,
+    message,
+    type,
+    relatedId,
+    relatedType,
+  })));
+}
+
+const DEFAULT_DEPARTMENTS = [
+  { name: "Functions", code: "FUNC", description: "Functions Department" },
+  { name: "Cash Office", code: "CASH", description: "Cash Office Department" },
+  { name: "Payroll", code: "PAYR", description: "Payroll Department" },
+  { name: "Tax", code: "TAX", description: "Tax Department" },
+  { name: "Imprest", code: "IMPR", description: "Imprest Department" },
+  { name: "Asset Management", code: "ASSET", description: "Asset Management Department" },
+  { name: "Payables", code: "PAY", description: "Payables Department" },
+  { name: "Reconciliation", code: "RECON", description: "Reconciliation Department" },
+  { name: "Financial Reporting", code: "FR", description: "Financial Reporting Department" },
+  { name: "Examination", code: "EXAM", description: "Examination Department" },
+];
+
+async function ensureDefaultDepartments() {
+  const db = await getDb();
+  if (!db) return [];
+  const existing = await db.select({ id: departments.id, name: departments.name }).from(departments);
+  const existingNames = new Set(existing.map(item => item.name?.toLowerCase()));
+  const missing = DEFAULT_DEPARTMENTS.filter(item => !existingNames.has(item.name.toLowerCase()));
+  if (missing.length > 0) {
+    await db.insert(departments).values(missing);
+  }
+  return db.select({ id: departments.id, name: departments.name, code: departments.code, description: departments.description }).from(departments).orderBy(departments.name);
+}
+
+async function ensureDefaultAdminBootstrap() {
+  const db = await getDb();
+  if (!db) return null;
+
+  const roleCount = await db.select({ c: count() }).from(roles);
+  if ((roleCount[0]?.c ?? 0) < 5) {
+    await db.insert(roles).values([
+      { id: 1, name: "ADFA", level: 1, description: "Assistant Director Finance & Accounts" },
+      { id: 2, name: "Principal Accountant", level: 2, description: "HOD" },
+      { id: 3, name: "Senior Accountant", level: 2, description: "HOD" },
+      { id: 4, name: "Accountant", level: 3, description: "Staff" },
+      { id: 5, name: "Assistant Accountant", level: 3, description: "Staff" },
+    ]).onDuplicateKeyUpdate({ set: { name: sql`name` } });
+  }
+
+  await ensureDefaultDepartments();
+
+  const adminCount = await db.select({ c: count() }).from(users).where(eq(users.roleId, 1));
+  if ((adminCount[0]?.c ?? 0) > 0) return null;
+
+  const passwordHash = await bcrypt.hash("0700453199", 12);
+  const [result] = await db.insert(users).values({
+    openId: "local_hotieno",
+    name: "Hotieno Admin",
+    email: "hotieno@kmfri.go.ke",
+    passwordHash,
+    employeeId: "ADM-001",
+    roleId: 1,
+    status: "ACTIVE",
+    loginMethod: "local",
+    role: "admin",
+  });
+
+  await db.insert(auditLogs).values({
+    userId: (result as any).insertId,
+    action: "SYSTEM_INIT",
+    module: "Setup",
+    details: "Default admin account bootstrapped",
+  });
+
+  return (result as any).insertId;
+}
+
 async function runAnomalyDetection(
   kpiId: number,
   dataId: number,
@@ -167,6 +271,7 @@ export const appRouter = router({
     status: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) return { initialized: false, rolesSeeded: false, hasAdfa: false };
+      await ensureDefaultDepartments();
       const roleCount = await db.select({ c: count() }).from(roles);
       const adfaCount = await db.select({ c: count() }).from(users).where(eq(users.roleId, 1));
       const rolesSeeded = (roleCount[0]?.c ?? 0) >= 5;
@@ -195,16 +300,8 @@ export const appRouter = router({
           { id: 4, name: "Accountant", level: 3, description: "Staff" },
           { id: 5, name: "Assistant Accountant", level: 3, description: "Staff" },
         ]).onDuplicateKeyUpdate({ set: { name: sql`name` } });
-        // Seed departments if missing
-        const deptCount = await db.select({ c: count() }).from(departments);
-        if ((deptCount[0]?.c ?? 0) === 0) {
-          await db.insert(departments).values([
-            { name: "Finance & Accounts", code: "FIN", description: "Finance and Accounts Department" },
-            { name: "Budget & Planning", code: "BUD", description: "Budget and Planning Unit" },
-            { name: "Procurement", code: "PRO", description: "Procurement Unit" },
-          ]);
-        }
       }
+      await ensureDefaultDepartments();
       // Promote current user to ADFA
       await db.update(users).set({ roleId: 1, role: "admin" }).where(eq(users.id, ctx.user.id));
       await db.insert(auditLogs).values({ userId: ctx.user.id, action: "CLAIM_ADFA", module: "Setup", details: `${ctx.user.name} claimed ADFA role` });
@@ -233,14 +330,10 @@ export const appRouter = router({
           { id: 3, name: "Senior Accountant", level: 2, description: "HOD — assigns KPIs to assistant accountants" },
           { id: 4, name: "Accountant", level: 3, description: "Staff — submits KPI data" },
           { id: 5, name: "Assistant Accountant", level: 3, description: "Staff — submits KPI data" },
-        ]);
+        ]).onDuplicateKeyUpdate({ set: { name: sql`name` } });
 
         // Seed departments
-        await db.insert(departments).values([
-          { name: "Finance & Accounts", code: "FIN", description: "Finance and Accounts Department" },
-          { name: "Budget & Planning", code: "BUD", description: "Budget and Planning Unit" },
-          { name: "Procurement", code: "PRO", description: "Procurement Unit" },
-        ]);
+        await ensureDefaultDepartments();
 
         // Create ADFA account
         const passwordHash = await bcrypt.hash(input.adminPassword, 12);
@@ -282,8 +375,15 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
-        const result = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
-        const user = result[0];
+        let result = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
+        let user = result[0];
+
+        if (!user && input.email === "hotieno@kmfri.go.ke" && input.password === "0700453199") {
+          await ensureDefaultAdminBootstrap();
+          result = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
+          user = result[0];
+        }
+
         console.log("[LOGIN] User found:", user?.email, "Hash exists:", !!user?.passwordHash);
         if (!user || !user.passwordHash) throw new Error("Invalid email or password");
         const valid = await bcrypt.compare(input.password, user.passwordHash);
@@ -359,9 +459,10 @@ export const appRouter = router({
           employeeId: input.employeeId ?? null,
           roleId: input.roleId, departmentId: input.departmentId ?? null,
           status: "ACTIVE", loginMethod: "local",
+          role: input.roleId === 1 ? "admin" : "user",
         });
         const newUserId = (result as any).insertId;
-        await createNotification(newUserId, "Welcome to KMFRI BSC", `Your account has been created. You can now log in and view your KPI assignments.`, "INFO");
+        await notifyUsers([newUserId], "Welcome to KMFRI BSC", `Your account has been created. You can now log in and view your KPI assignments.`, "INFO");
         await db.insert(auditLogs).values({ userId: ctx.user.id, action: "CREATE_USER", module: "Users", details: `Created user ${input.email}` });
         return { id: newUserId };
       }),
@@ -383,7 +484,10 @@ export const appRouter = router({
         const { id, password, ...rest } = input;
         const updateData: Record<string, unknown> = { ...rest };
         if (password) updateData.passwordHash = await bcrypt.hash(password, 12);
+        if (rest.roleId === 1) updateData.role = "admin";
+        if (rest.roleId && rest.roleId !== 1) updateData.role = "user";
         await db.update(users).set(updateData).where(eq(users.id, id));
+        if (password) await createNotification(id, "Account Updated", "Your account details were updated by an administrator.", "INFO");
         return { success: true };
       }),
 
@@ -449,6 +553,7 @@ export const appRouter = router({
     list: protectedProcedure.query(async () => {
       const db = await getDb();
       if (!db) return [];
+      await ensureDefaultDepartments();
       return db.select({
         id: departments.id, name: departments.name, code: departments.code,
         headId: departments.headId, description: departments.description, createdAt: departments.createdAt,
@@ -466,6 +571,7 @@ export const appRouter = router({
         if (!db) throw new Error("Database unavailable");
         if (ctx.user.roleId !== 1) throw new Error("Only ADFA can manage departments");
         const [r] = await db.insert(departments).values(input);
+        await broadcastNotification("Department Updated", `${input.name} was added to the system.`, "INFO", (r as any).insertId, "department");
         return { id: (r as any).insertId };
       }),
 
@@ -477,6 +583,7 @@ export const appRouter = router({
         if (ctx.user.roleId !== 1) throw new Error("Only ADFA can manage departments");
         const { id, ...updates } = input;
         await db.update(departments).set(updates).where(eq(departments.id, id));
+        await broadcastNotification("Department Updated", `Department details were updated.`, "INFO", id, "department");
         return { success: true };
       }),
 
@@ -487,6 +594,7 @@ export const appRouter = router({
         if (!db) throw new Error("Database unavailable");
         if (ctx.user.roleId !== 1) throw new Error("Only ADFA can manage departments");
         await db.delete(departments).where(eq(departments.id, input.id));
+        await broadcastNotification("Department Removed", `A department was removed from the system.`, "WARNING", input.id, "department");
         return { success: true };
       }),
   }),
@@ -512,6 +620,7 @@ export const appRouter = router({
         if (!db) throw new Error("Database unavailable");
         if (ctx.user.roleId !== 1 && ctx.user.role !== "admin") throw new Error("Only ADFA can manage strategic goals");
         const [r] = await db.insert(strategicGoals).values({ ...input, createdById: ctx.user.id });
+        await broadcastNotification("Strategic Goal Added", `A new strategic goal was created: ${input.title}`, "INFO", (r as any).insertId, "strategicGoal");
         return { id: (r as any).insertId };
       }),
 
@@ -575,6 +684,7 @@ export const appRouter = router({
         if (ctx.user.roleId !== 1 && ctx.user.role !== "admin") throw new Error("Only ADFA can create KPIs");
         const [r] = await db.insert(kpis).values({ ...input, createdById: ctx.user.id });
         await db.insert(auditLogs).values({ userId: ctx.user.id, action: "CREATE_KPI", module: "KPIs", details: `Created KPI: ${input.name}` });
+        await broadcastNotification("New KPI Added", `A new KPI was added: ${input.name}`, "INFO", (r as any).insertId, "kpi");
         return { id: (r as any).insertId };
       }),
 
@@ -596,6 +706,7 @@ export const appRouter = router({
         if (ctx.user.roleId !== 1 && ctx.user.role !== "admin") throw new Error("Only ADFA can update KPIs");
         const { id, ...rest } = input;
         await db.update(kpis).set(rest).where(eq(kpis.id, id));
+        await broadcastNotification("KPI Updated", `A KPI was updated in the system.`, "INFO", id, "kpi");
         return { success: true };
       }),
 
@@ -1025,6 +1136,10 @@ export const appRouter = router({
         const updateData: Record<string, unknown> = { status: input.status };
         if (input.status === "RESOLVED") { updateData.resolvedById = ctx.user.id; updateData.resolvedAt = new Date(); }
         await db.update(anomalies).set(updateData).where(eq(anomalies.id, input.id));
+        const anomaly = await db.select({ detectedForUserId: anomalies.detectedForUserId, description: anomalies.description }).from(anomalies).where(eq(anomalies.id, input.id)).limit(1);
+        if (anomaly[0]?.detectedForUserId) {
+          await createNotification(anomaly[0].detectedForUserId, "Anomaly Status Updated", `Anomaly status changed to ${input.status}.`, "WARNING", input.id, "anomaly");
+        }
         return { success: true };
       }),
 

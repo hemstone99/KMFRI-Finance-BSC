@@ -58,6 +58,8 @@ interface KMFRILayoutProps {
   user: any;
 }
 
+const logoSrc = "/kmfri-logo.svg";
+
 export default function KMFRILayout({ children, user }: KMFRILayoutProps) {
   const [location] = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -100,12 +102,9 @@ export default function KMFRILayout({ children, user }: KMFRILayoutProps) {
         <div className="flex items-center gap-3">
           <div className="shrink-0">
             <img
-              src="/manus-storage/kmfri-logo-seal_05061866.jpg"
-              alt="KMFRI"
-              className="w-10 h-10 rounded-full object-cover border-2 border-white/20"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
-              }}
+              src={logoSrc}
+              alt="KMFRI Logo"
+              className="w-10 h-10 rounded-xl object-contain border-2 border-white/20"
             />
           </div>
           {sidebarOpen && (
@@ -192,15 +191,12 @@ export default function KMFRILayout({ children, user }: KMFRILayoutProps) {
             {/* Logo & Title */}
             <div className="flex items-center gap-2">
               <img
-                src="/manus-storage/kmfri-logo-seal_05061866.jpg"
-                alt="KMFRI"
-                className="w-8 h-8 rounded-full object-cover border-2 border-gray-200"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                }}
+                src={logoSrc}
+                alt="KMFRI Logo"
+                className="w-8 h-8 rounded-xl object-contain border-2 border-gray-200"
               />
               <div>
-                <div className="text-sm font-bold text-gray-900">KMFRI Finance</div>
+                <div className="text-sm font-bold text-gray-900">KMFRI Finance BSC</div>
                 <div className="text-xs text-gray-600">Balanced Scorecard</div>
               </div>
             </div>

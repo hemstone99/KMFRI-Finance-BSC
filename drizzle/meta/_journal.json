@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "5",
-      "when": 1782892810182,
-      "tag": "0000_bumpy_microchip",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "5",
-      "when": 1782893003650,
-      "tag": "0001_true_sabra",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "5",
-      "when": 1782906209046,
-      "tag": "0002_great_wendigo",
+      "when": 1783344978540,
+      "tag": "0000_dashing_victor_mancha",
       "breakpoints": true
     }
   ]

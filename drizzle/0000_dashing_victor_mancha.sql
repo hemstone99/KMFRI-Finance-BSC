@@ -51,6 +51,19 @@ CREATE TABLE `audit_logs` (
 	CONSTRAINT `audit_logs_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
+CREATE TABLE `budgets` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`departmentId` int NOT NULL,
+	`fiscalYear` varchar(20) NOT NULL,
+	`allocatedAmount` decimal(15,2) NOT NULL,
+	`spentAmount` decimal(15,2) DEFAULT '0.00',
+	`remainingAmount` decimal(15,2) NOT NULL,
+	`status` enum('ACTIVE','CLOSED','ARCHIVED') NOT NULL DEFAULT 'ACTIVE',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `budgets_id` PRIMARY KEY(`id`)
+);
+--> statement-breakpoint
 CREATE TABLE `departments` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`name` varchar(255) NOT NULL,
@@ -60,6 +73,21 @@ CREATE TABLE `departments` (
 	`createdAt` timestamp NOT NULL DEFAULT (now()),
 	CONSTRAINT `departments_id` PRIMARY KEY(`id`),
 	CONSTRAINT `departments_code_unique` UNIQUE(`code`)
+);
+--> statement-breakpoint
+CREATE TABLE `evidence_documents` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`kpiDataId` int,
+	`assignmentId` int,
+	`uploadedById` int NOT NULL,
+	`fileName` varchar(500) NOT NULL,
+	`fileUrl` varchar(1000) NOT NULL,
+	`fileType` varchar(50) NOT NULL,
+	`fileSize` int,
+	`description` text,
+	`status` enum('ACTIVE','ARCHIVED','DELETED') NOT NULL DEFAULT 'ACTIVE',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `evidence_documents_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
 CREATE TABLE `kpi_assignments` (
@@ -117,6 +145,34 @@ CREATE TABLE `kpis` (
 	CONSTRAINT `kpis_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
+CREATE TABLE `leave_balance` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`userId` int NOT NULL,
+	`leaveType` enum('ANNUAL','SICK','COMPASSIONATE','MATERNITY','PATERNITY','UNPAID','OTHER') NOT NULL,
+	`totalDays` int NOT NULL,
+	`usedDays` int NOT NULL DEFAULT 0,
+	`remainingDays` int NOT NULL,
+	`fiscalYear` varchar(20) NOT NULL,
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `leave_balance_id` PRIMARY KEY(`id`)
+);
+--> statement-breakpoint
+CREATE TABLE `leave_requests` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`userId` int NOT NULL,
+	`leaveType` enum('ANNUAL','SICK','COMPASSIONATE','MATERNITY','PATERNITY','UNPAID','OTHER') NOT NULL,
+	`startDate` varchar(20) NOT NULL,
+	`endDate` varchar(20) NOT NULL,
+	`days` int NOT NULL,
+	`reason` text,
+	`status` enum('PENDING','APPROVED','REJECTED','CANCELLED') NOT NULL DEFAULT 'PENDING',
+	`approvedById` int,
+	`approvalNotes` text,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `leave_requests_id` PRIMARY KEY(`id`)
+);
+--> statement-breakpoint
 CREATE TABLE `notifications` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`userId` int NOT NULL,
@@ -154,12 +210,22 @@ CREATE TABLE `strategic_goals` (
 	CONSTRAINT `strategic_goals_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
-ALTER TABLE `users` MODIFY COLUMN `name` text NOT NULL;--> statement-breakpoint
-ALTER TABLE `users` MODIFY COLUMN `email` varchar(320) NOT NULL;--> statement-breakpoint
-ALTER TABLE `users` MODIFY COLUMN `loginMethod` varchar(64) DEFAULT 'local';--> statement-breakpoint
-ALTER TABLE `users` ADD `passwordHash` varchar(255);--> statement-breakpoint
-ALTER TABLE `users` ADD `employeeId` varchar(50);--> statement-breakpoint
-ALTER TABLE `users` ADD `roleId` int DEFAULT 3 NOT NULL;--> statement-breakpoint
-ALTER TABLE `users` ADD `departmentId` int;--> statement-breakpoint
-ALTER TABLE `users` ADD `status` enum('ACTIVE','INACTIVE','SUSPENDED') DEFAULT 'ACTIVE' NOT NULL;--> statement-breakpoint
-ALTER TABLE `users` ADD CONSTRAINT `users_email_unique` UNIQUE(`email`);
+CREATE TABLE `users` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`openId` varchar(64) NOT NULL,
+	`name` text NOT NULL,
+	`email` varchar(320) NOT NULL,
+	`passwordHash` varchar(255),
+	`employeeId` varchar(50),
+	`roleId` int NOT NULL DEFAULT 3,
+	`departmentId` int,
+	`status` enum('ACTIVE','INACTIVE','SUSPENDED') NOT NULL DEFAULT 'ACTIVE',
+	`loginMethod` varchar(64) DEFAULT 'local',
+	`role` enum('user','admin') NOT NULL DEFAULT 'user',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	`lastSignedIn` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `users_id` PRIMARY KEY(`id`),
+	CONSTRAINT `users_openId_unique` UNIQUE(`openId`),
+	CONSTRAINT `users_email_unique` UNIQUE(`email`)
+);

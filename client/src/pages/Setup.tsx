@@ -68,39 +68,35 @@ export default function Setup() {
   return (
     <div className="min-h-screen flex" style={{ background: "linear-gradient(135deg, #0a1628 0%, #0d2240 40%, #0a3d5c 70%, #0d5c7a 100%)" }}>
       {/* Left Panel */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center p-12 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-10 left-10 w-64 h-64 rounded-full border-2 border-white" />
-          <div className="absolute bottom-20 right-10 w-80 h-80 rounded-full border-2 border-white" />
-        </div>
-        <div className="relative z-10 text-center max-w-md">
+      <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-12 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(15,54,119,0.45),_transparent_24%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.18),_transparent_28%)]" />
+        <div className="relative z-10 w-full max-w-md rounded-[2rem] border border-white/10 bg-slate-950/85 p-10 shadow-2xl backdrop-blur-xl text-white">
           <div className="flex justify-center mb-8">
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-              <img
-                src="/manus-storage/kmfri-logo-wide_02da27ab.png"
-                alt="KMFRI Logo"
-                className="h-16 w-auto object-contain"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-              />
-            </div>
+            <img
+              src="/kmfri-logo.svg"
+              alt="KMFRI Logo"
+              className="h-16 max-w-[200px] w-auto object-contain"
+            />
           </div>
-          <h1 className="text-4xl font-bold text-white mb-3 font-['Poppins']">System Setup</h1>
-          <p className="text-blue-200 text-lg mb-2">Kenya Marine and Fisheries Research Institute</p>
-          <p className="text-blue-300/70 text-sm mb-8">First-time configuration wizard</p>
+          <div className="text-center space-y-4">
+            <h1 className="text-4xl font-semibold tracking-tight">KMFRI Finance BSC</h1>
+            <p className="text-blue-200 text-lg">Kenya Marine and Fisheries Research Institute</p>
+            <p className="text-blue-300/70 text-sm">Modern onboarding for your Balanced Scorecard system.</p>
+          </div>
 
-          <div className="space-y-4 text-left">
+          <div className="mt-10 space-y-4 text-left">
             {[
-              { step: "1", title: "Create ADFA Account", desc: "Set up the Assistant Director Finance & Accounts administrator" },
-              { step: "2", title: "Roles & Departments Seeded", desc: "All 5 roles and default departments are created automatically" },
-              { step: "3", title: "Start Managing KPIs", desc: "Log in and begin assigning KPIs to your team" },
-            ].map(s => (
-              <div key={s.step} className="flex gap-4 bg-white/5 rounded-xl p-4 border border-white/10">
-                <div className="w-8 h-8 rounded-full bg-blue-500/30 border border-blue-400/50 flex items-center justify-center shrink-0">
-                  <span className="text-blue-200 text-sm font-bold">{s.step}</span>
+              { step: "1", title: "Create ADFA Account", desc: "Setup your administrator credentials for the finance BSC." },
+              { step: "2", title: "Seed Roles & Departments", desc: "Load the finance structure and department roles automatically." },
+              { step: "3", title: "Launch the Dashboard", desc: "Sign in and start managing KPIs, approvals and reports." },
+            ].map((item) => (
+              <div key={item.step} className="flex gap-4 rounded-3xl border border-white/10 bg-white/5 p-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-500/20 text-blue-100 font-semibold">
+                  {item.step}
                 </div>
                 <div>
-                  <p className="text-white font-medium text-sm">{s.title}</p>
-                  <p className="text-white/60 text-xs mt-0.5">{s.desc}</p>
+                  <p className="text-sm font-semibold">{item.title}</p>
+                  <p className="text-sm text-blue-200/80">{item.desc}</p>
                 </div>
               </div>
             ))}
@@ -112,89 +108,91 @@ export default function Setup() {
       <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
         <div className="w-full max-w-md">
           <div className="lg:hidden text-center mb-8">
-            <img src="/manus-storage/kmfri-logo-wide_02da27ab.png" alt="KMFRI" className="h-12 w-auto object-contain mx-auto mb-3" />
+            <img src="/kmfri-logo.svg" alt="KMFRI" className="h-10 max-w-[160px] w-auto object-contain mx-auto mb-3" />
             <h1 className="text-white text-2xl font-bold font-['Poppins']">KMFRI BSC Setup</h1>
           </div>
 
           <Card className="border-0 shadow-2xl bg-white/95 backdrop-blur-sm">
             <CardContent className="p-8">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
-                  <Settings className="w-5 h-5 text-blue-600" />
+                <div className="w-12 h-12 flex items-center justify-center rounded-3xl bg-blue-50 text-blue-700">
+                  <Settings className="w-6 h-6" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900 font-['Poppins']">Create ADFA Account</h2>
-                  <p className="text-gray-500 text-xs mt-0.5">One-time system initialization</p>
+                  <p className="text-sm text-blue-500 uppercase tracking-[0.2em]">Setup wizard</p>
+                  <h2 className="text-2xl font-bold text-slate-900">Create your ADFA account</h2>
                 </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-gray-700">Full Name *</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="grid gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium text-gray-700">Full Name *</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        value={form.adminName}
+                        onChange={(e) => setForm((p) => ({ ...p, adminName: e.target.value }))}
+                        placeholder="e.g., Dr. James Mwangi"
+                        className="pl-10 h-11"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium text-gray-700">Email Address *</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        type="email"
+                        value={form.adminEmail}
+                        onChange={(e) => setForm((p) => ({ ...p, adminEmail: e.target.value }))}
+                        placeholder="adfa@kmfri.go.ke"
+                        className="pl-10 h-11"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium text-gray-700">Employee ID</Label>
                     <Input
-                      value={form.adminName}
-                      onChange={e => setForm(p => ({ ...p, adminName: e.target.value }))}
-                      placeholder="e.g., Dr. James Mwangi"
-                      className="pl-10 h-11"
-                      required
+                      value={form.employeeId}
+                      onChange={(e) => setForm((p) => ({ ...p, employeeId: e.target.value }))}
+                      placeholder="KMFRI-001"
+                      className="h-11"
                     />
                   </div>
-                </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-gray-700">Email Address *</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                      type="email"
-                      value={form.adminEmail}
-                      onChange={e => setForm(p => ({ ...p, adminEmail: e.target.value }))}
-                      placeholder="adfa@kmfri.go.ke"
-                      className="pl-10 h-11"
-                      required
-                    />
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium text-gray-700">Password *</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        type="password"
+                        value={form.adminPassword}
+                        onChange={(e) => setForm((p) => ({ ...p, adminPassword: e.target.value }))}
+                        placeholder="Min. 6 characters"
+                        className="pl-10 h-11"
+                        required
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-gray-700">Employee ID (optional)</Label>
-                  <Input
-                    value={form.employeeId}
-                    onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))}
-                    placeholder="KMFRI-001"
-                    className="h-11"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-gray-700">Password *</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                      type="password"
-                      value={form.adminPassword}
-                      onChange={e => setForm(p => ({ ...p, adminPassword: e.target.value }))}
-                      placeholder="Min. 6 characters"
-                      className="pl-10 h-11"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-gray-700">Confirm Password *</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                      type="password"
-                      value={form.confirmPassword}
-                      onChange={e => setForm(p => ({ ...p, confirmPassword: e.target.value }))}
-                      placeholder="Re-enter password"
-                      className="pl-10 h-11"
-                      required
-                    />
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium text-gray-700">Confirm Password *</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        type="password"
+                        value={form.confirmPassword}
+                        onChange={(e) => setForm((p) => ({ ...p, confirmPassword: e.target.value }))}
+                        placeholder="Re-enter password"
+                        className="pl-10 h-11"
+                        required
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -207,7 +205,7 @@ export default function Setup() {
 
                 <Button
                   type="submit"
-                  className="w-full h-11 text-sm font-semibold mt-2"
+                  className="w-full h-12 text-sm font-semibold tracking-wide"
                   style={{ background: "linear-gradient(135deg, #0d2240, #0a3d5c)" }}
                   disabled={!form.adminName || !form.adminEmail || !form.adminPassword || initMutation.isPending}
                 >
@@ -219,13 +217,8 @@ export default function Setup() {
                 </Button>
               </form>
 
-              <div className="mt-5 pt-4 border-t border-gray-100">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-green-500 shrink-0" />
-                  <p className="text-xs text-gray-400">
-                    This setup runs once. After initialization, only the ADFA can create additional user accounts.
-                  </p>
-                </div>
+              <div className="mt-6 rounded-3xl border border-slate-200/80 bg-slate-50/80 p-4 text-sm text-slate-600">
+                After setup, the ADFA can add users and manage access across roles.
               </div>
             </CardContent>
           </Card>

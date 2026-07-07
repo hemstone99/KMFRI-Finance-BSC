@@ -1,4 +1,3 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
@@ -6,7 +5,6 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { TrendingUp, TrendingDown, Loader2 } from "lucide-react";
 
 export default function YOYComparison() {
-  const { user } = useAuth();
   const { data: dashboard, isLoading } = trpc.dashboard.summary.useQuery();
   const { data: kpiData } = trpc.kpis.list.useQuery();
 
@@ -21,23 +19,29 @@ export default function YOYComparison() {
     );
   }
 
-  // Calculate YOY data from current KPIs and dashboard data
-  const perspectives = dashboard?.perspectives?.map(p => p.name) || ["Financial", "Customer", "Internal", "Learning"];
-  const avgPerspectiveScore = dashboard?.perspectives?.reduce((sum, p) => sum + p.score, 0) || 0 / (dashboard?.perspectives?.length || 1);
-  
-  // Build YOY trend data - using dashboard data for current year
+  const defaultPerspectives = ["Financial", "Customer", "Internal", "Learning"];
+  const hasPerspectives = Array.isArray(dashboard?.perspectives) && dashboard.perspectives.length > 0;
+  const perspectives = hasPerspectives
+    ? dashboard!.perspectives.map((p) => p.name)
+    : defaultPerspectives;
+
+  const perspectiveData = hasPerspectives ? dashboard!.perspectives : defaultPerspectives.map((name) => ({ name, score: 85 }));
+  const avgPerspectiveScore = Math.round(
+    perspectiveData.reduce((sum, p) => sum + (p as any).score, 0) / perspectiveData.length
+  );
+
   const yoyData = [
-    { period: "Q1", year2025: 75, year2026: Math.round(avgPerspectiveScore * 0.9) || 82 },
-    { period: "Q2", year2025: 78, year2026: Math.round(avgPerspectiveScore * 0.92) || 85 },
-    { period: "Q3", year2025: 80, year2026: Math.round(avgPerspectiveScore * 0.95) || 88 },
-    { period: "Q4", year2025: 82, year2026: Math.round(avgPerspectiveScore) || 90 },
+    { period: "Q1", year2025: 75, year2026: Math.round(avgPerspectiveScore * 0.9) },
+    { period: "Q2", year2025: 78, year2026: Math.round(avgPerspectiveScore * 0.92) },
+    { period: "Q3", year2025: 80, year2026: Math.round(avgPerspectiveScore * 0.95) },
+    { period: "Q4", year2025: 82, year2026: Math.round(avgPerspectiveScore) },
   ];
 
-  // Calculate perspective comparison from dashboard data
-  const perspectiveComparison = (perspectives as string[]).map((perspective, idx) => {
-    const baseScores = [78, 75, 80, 72];
-    const dashboardPerspective = dashboard?.perspectives?.[idx];
-    const currentScore = dashboardPerspective?.score || baseScores[idx] + 7;
+  const baseScores = [78, 75, 80, 72];
+  const perspectiveComparison = perspectives.map((perspective, idx) => {
+    const currentScore = hasPerspectives
+      ? dashboard!.perspectives[idx]?.score ?? baseScores[idx] + 7
+      : baseScores[idx] + 7;
     const change = currentScore - baseScores[idx];
     return {
       name: perspective,
@@ -47,10 +51,16 @@ export default function YOYComparison() {
     };
   });
 
-  const avgScore2025 = Math.round(perspectiveComparison.reduce((sum, p) => sum + (p["2025"] as number), 0) / perspectiveComparison.length);
-  const avgScore2026 = Math.round(perspectiveComparison.reduce((sum, p) => sum + (p["2026"] as number), 0) / perspectiveComparison.length);
+  const avgScore2025 = perspectiveComparison.length
+    ? Math.round(perspectiveComparison.reduce((sum, p) => sum + (p["2025"] as number), 0) / perspectiveComparison.length)
+    : 0;
+  const avgScore2026 = perspectiveComparison.length
+    ? Math.round(perspectiveComparison.reduce((sum, p) => sum + (p["2026"] as number), 0) / perspectiveComparison.length)
+    : 0;
   const overallImprovement = avgScore2026 - avgScore2025;
-  const bestPerformer = perspectiveComparison.reduce((best, current) => current.change > best.change ? current : best);
+  const bestPerformer = perspectiveComparison.length
+    ? perspectiveComparison.reduce((best, current) => (current.change > best.change ? current : best))
+    : { name: "Financial", 2025: 0, 2026: 0, change: 0 };
 
   return (
     <div className="space-y-6">
@@ -58,6 +68,12 @@ export default function YOYComparison() {
         <h1 className="text-3xl font-bold text-gray-900">Year-over-Year Comparison</h1>
         <p className="text-gray-600 mt-1">Compare KPI performance across years</p>
       </div>
+
+      {!hasPerspectives && (
+        <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-700">
+          <strong className="font-semibold">No data available yet.</strong> The YOY comparison requires dashboard perspectives to be seeded. Please add perspective data or complete setup before viewing this page.
+        </div>
+      )}
 
       {/* Overall Trend */}
       <Card>

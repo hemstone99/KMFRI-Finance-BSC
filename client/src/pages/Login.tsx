@@ -39,17 +39,12 @@ export default function Login() {
         <div className="relative z-10 text-center max-w-md">
           {/* KMFRI Logo */}
           <div className="flex justify-center mb-8">
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+            <div className="rounded-[2rem] border border-white/15 bg-white/10 p-6 backdrop-blur-xl shadow-2xl">
               <img
-                src="/manus-storage/kmfri-logo-wide_02da27ab.png"
+                src="/kmfri-logo.svg"
                 alt="KMFRI Logo"
-                className="h-16 w-auto object-contain"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                  (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
-                }}
+                className="h-14 max-w-[180px] w-auto object-contain"
               />
-              <div className="hidden text-white font-bold text-2xl tracking-wider">KMFRI</div>
             </div>
           </div>
 
@@ -87,9 +82,9 @@ export default function Login() {
           {/* Mobile Logo */}
           <div className="lg:hidden text-center mb-8">
             <img
-              src="/manus-storage/kmfri-logo-wide_02da27ab.png"
+              src="/kmfri-logo.svg"
               alt="KMFRI"
-              className="h-12 w-auto object-contain mx-auto mb-3"
+              className="h-10 max-w-[160px] w-auto object-contain mx-auto mb-3"
             />
             <h1 className="text-white text-2xl font-bold font-['Poppins']">KMFRI Finance BSC</h1>
           </div>
@@ -102,6 +97,13 @@ export default function Login() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="rounded-3xl border border-slate-200/80 bg-slate-50/90 p-4 shadow-sm">
+                  <div className="mb-4 text-center">
+                    <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Secure sign in</p>
+                    <h2 className="text-xl font-semibold text-gray-900">Welcome back</h2>
+                    <p className="text-sm text-slate-500">Continue to your KMFRI finance dashboard</p>
+                  </div>
+                </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="email" className="text-sm font-medium text-gray-700">
                     Email Address
@@ -149,7 +151,7 @@ export default function Login() {
 
                 <Button
                   type="submit"
-                  className="w-full h-11 text-sm font-semibold"
+                  className="w-full h-12 text-sm font-semibold tracking-wide"
                   style={{ background: "linear-gradient(135deg, #0d2240, #0a3d5c)" }}
                   disabled={loginMutation.isPending}
                 >
@@ -161,10 +163,8 @@ export default function Login() {
                 </Button>
               </form>
 
-              <div className="mt-6 pt-5 border-t border-gray-100">
-                <p className="text-xs text-gray-400 text-center">
-                  For account access, contact your system administrator.
-                </p>
+              <div className="mt-6 rounded-3xl border border-slate-200/80 bg-slate-50/80 p-4 text-center text-sm text-slate-500">
+                Need help signing in? Contact your system administrator for access.
               </div>
             </CardContent>
           </Card>

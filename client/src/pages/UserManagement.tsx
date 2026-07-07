@@ -20,6 +20,19 @@ const ROLE_COLORS: Record<string, string> = {
   "Assistant Accountant": "bg-gray-100 text-gray-700",
 };
 
+const DEFAULT_DEPARTMENT_OPTIONS = [
+  "Functions",
+  "Cash Office",
+  "Payroll",
+  "Tax",
+  "Imprest",
+  "Asset Management",
+  "Payables",
+  "Reconciliation",
+  "Financial Reporting",
+  "Examination",
+];
+
 export default function UserManagement() {
   const [createOpen, setCreateOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -53,10 +66,10 @@ export default function UserManagement() {
             <DialogHeader><DialogTitle>Create New User</DialogTitle></DialogHeader>
             <div className="space-y-4 mt-2">
               <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2"><Label>Full Name *</Label><Input value={form.name} onChange={e => setForm(p => ({...p, name: e.target.value}))} placeholder="e.g., John Kamau" className="mt-1" /></div>
-                <div className="col-span-2"><Label>Email Address *</Label><Input type="email" value={form.email} onChange={e => setForm(p => ({...p, email: e.target.value}))} placeholder="john.kamau@kmfri.go.ke" className="mt-1" /></div>
-                <div className="col-span-2"><Label>Password *</Label><Input type="password" value={form.password} onChange={e => setForm(p => ({...p, password: e.target.value}))} placeholder="Min. 6 characters" className="mt-1" /></div>
-                <div><Label>Employee ID</Label><Input value={form.employeeId} onChange={e => setForm(p => ({...p, employeeId: e.target.value}))} placeholder="KMFRI-001" className="mt-1" /></div>
+                <div className="col-span-2"><Label>Full Name *</Label><Input value={form.name} onChange={e => setForm(p => ({...p, name: e.target.value}))} placeholder="Enter full name" className="mt-1" /></div>
+                <div className="col-span-2"><Label>Email Address *</Label><Input type="email" value={form.email} onChange={e => setForm(p => ({...p, email: e.target.value}))} placeholder="name@kmfri.go.ke" className="mt-1" /></div>
+                <div className="col-span-2"><Label>Password *</Label><Input type="password" value={form.password} onChange={e => setForm(p => ({...p, password: e.target.value}))} placeholder="Create a secure password" className="mt-1" /></div>
+                <div><Label>Employee ID</Label><Input value={form.employeeId} onChange={e => setForm(p => ({...p, employeeId: e.target.value}))} placeholder="ADM-001" className="mt-1" /></div>
                 <div><Label>Role *</Label>
                   <Select value={form.roleId} onValueChange={v => setForm(p => ({...p, roleId: v}))}>
                     <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
@@ -67,10 +80,10 @@ export default function UserManagement() {
                 </div>
                 <div className="col-span-2"><Label>Department</Label>
                   <Select value={form.departmentId} onValueChange={v => setForm(p => ({...p, departmentId: v}))}>
-                    <SelectTrigger className="mt-1"><SelectValue placeholder="Select department..." /></SelectTrigger>
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Select department" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">No department</SelectItem>
-                      {(departments ?? []).map(d => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}
+                      {(departments ?? []).length > 0 ? (departments ?? []).map(d => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>) : DEFAULT_DEPARTMENT_OPTIONS.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
