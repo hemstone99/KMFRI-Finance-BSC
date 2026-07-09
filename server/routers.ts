@@ -101,7 +101,7 @@ async function ensureDefaultAdminBootstrap() {
       { id: 3, name: "Senior Accountant", level: 2, description: "HOD" },
       { id: 4, name: "Accountant", level: 3, description: "Staff" },
       { id: 5, name: "Assistant Accountant", level: 3, description: "Staff" },
-    ]).onDuplicateKeyUpdate({ set: { name: sql`name` } });
+    ]).onConflictDoUpdate({ target: roles.id, set: { name: sql`excluded.name` } });
   }
 
   await ensureDefaultDepartments();
@@ -120,16 +120,16 @@ async function ensureDefaultAdminBootstrap() {
     status: "ACTIVE",
     loginMethod: "local",
     role: "admin",
-  });
+  }).returning();
 
   await db.insert(auditLogs).values({
-    userId: (result as any).insertId,
+    userId: result.id,
     action: "SYSTEM_INIT",
     module: "Setup",
     details: "Default admin account bootstrapped",
   });
 
-  return (result as any).insertId;
+  return result.id;
 }
 
 async function runAnomalyDetection(
@@ -240,7 +240,7 @@ async function runAnomalyDetection(
       actualValue: actualValue.toString(),
       expectedMin: a.min?.toString() ?? null,
       expectedMax: a.max?.toString() ?? null,
-    });
+    }).returning();
 
     // Notify the submitter and ADFA users
     await createNotification(
@@ -248,7 +248,7 @@ async function runAnomalyDetection(
       `Anomaly Detected: ${k.name}`,
       a.desc,
       "ANOMALY_DETECTED",
-      (inserted as any).insertId,
+      inserted.id,
       "anomaly"
     );
 
@@ -256,7 +256,7 @@ async function runAnomalyDetection(
     const adfaUsers = await db.select().from(users).where(eq(users.roleId, 1));
     for (const adfa of adfaUsers) {
       if (adfa.id !== submittedById) {
-        await createNotification(adfa.id, `Anomaly Alert: ${k.name}`, a.desc, "ANOMALY_DETECTED", (inserted as any).insertId, "anomaly");
+        await createNotification(adfa.id, `Anomaly Alert: ${k.name}`, a.desc, "ANOMALY_DETECTED", inserted.id, "anomaly");
       }
     }
   }
@@ -299,7 +299,7 @@ export const appRouter = router({
           { id: 3, name: "Senior Accountant", level: 2, description: "HOD" },
           { id: 4, name: "Accountant", level: 3, description: "Staff" },
           { id: 5, name: "Assistant Accountant", level: 3, description: "Staff" },
-        ]).onDuplicateKeyUpdate({ set: { name: sql`name` } });
+        ]).onConflictDoUpdate({ target: roles.id, set: { name: sql`excluded.name` } });
       }
       await ensureDefaultDepartments();
       // Promote current user to ADFA
@@ -330,7 +330,7 @@ export const appRouter = router({
           { id: 3, name: "Senior Accountant", level: 2, description: "HOD — assigns KPIs to assistant accountants" },
           { id: 4, name: "Accountant", level: 3, description: "Staff — submits KPI data" },
           { id: 5, name: "Assistant Accountant", level: 3, description: "Staff — submits KPI data" },
-        ]).onDuplicateKeyUpdate({ set: { name: sql`name` } });
+        ]).onConflictDoUpdate({ target: roles.id, set: { name: sql`excluded.name` } });
 
         // Seed departments
         await ensureDefaultDepartments();
@@ -342,9 +342,9 @@ export const appRouter = router({
           openId, name: input.adminName, email: input.adminEmail,
           passwordHash, employeeId: input.employeeId ?? null,
           roleId: 1, status: "ACTIVE", loginMethod: "local", role: "admin",
-        });
-        const adfaId = (r as any).insertId;
-        await db.insert(auditLogs).values({ userId: adfaId, action: "SYSTEM_INIT", module: "Setup", details: `System initialized by ${input.adminEmail}` });
+        }).returning();
+        
+        await db.insert(auditLogs).values({ userId: r.id, action: "SYSTEM_INIT", module: "Setup", details: `System initialized by ${input.adminEmail}` });
         return { success: true };
       }),
   }),
@@ -460,8 +460,8 @@ export const appRouter = router({
           roleId: input.roleId, departmentId: input.departmentId ?? null,
           status: "ACTIVE", loginMethod: "local",
           role: input.roleId === 1 ? "admin" : "user",
-        });
-        const newUserId = (result as any).insertId;
+        }).returning();
+        const newUserId = result.id;
         await notifyUsers([newUserId], "Welcome to KMFRI BSC", `Your account has been created. You can now log in and view your KPI assignments.`, "INFO");
         await db.insert(auditLogs).values({ userId: ctx.user.id, action: "CREATE_USER", module: "Users", details: `Created user ${input.email}` });
         return { id: newUserId };
@@ -482,7 +482,7 @@ export const appRouter = router({
         if (!db) throw new Error("Database unavailable");
         if (ctx.user.roleId !== 1 && ctx.user.role !== "admin") throw new Error("Insufficient permissions");
         const { id, password, ...rest } = input;
-        const updateData: Record<string, unknown> = { ...rest };
+        const updateData: Record<string, any> = { ...rest };
         if (password) updateData.passwordHash = await bcrypt.hash(password, 12);
         if (rest.roleId === 1) updateData.role = "admin";
         if (rest.roleId && rest.roleId !== 1) updateData.role = "user";
@@ -570,9 +570,9 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
         if (ctx.user.roleId !== 1) throw new Error("Only ADFA can manage departments");
-        const [r] = await db.insert(departments).values(input);
-        await broadcastNotification("Department Updated", `${input.name} was added to the system.`, "INFO", (r as any).insertId, "department");
-        return { id: (r as any).insertId };
+        const [r] = await db.insert(departments).values(input).returning();
+        await broadcastNotification("Department Updated", `${input.name} was added to the system.`, "INFO", r.id, "department");
+        return { id: r.id };
       }),
 
     update: protectedProcedure
@@ -619,9 +619,9 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
         if (ctx.user.roleId !== 1 && ctx.user.role !== "admin") throw new Error("Only ADFA can manage strategic goals");
-        const [r] = await db.insert(strategicGoals).values({ ...input, createdById: ctx.user.id });
-        await broadcastNotification("Strategic Goal Added", `A new strategic goal was created: ${input.title}`, "INFO", (r as any).insertId, "strategicGoal");
-        return { id: (r as any).insertId };
+        const [r] = await db.insert(strategicGoals).values({ ...input, createdById: ctx.user.id }).returning();
+        await broadcastNotification("Strategic Goal Added", `A new strategic goal was created: ${input.title}`, "INFO", r.id, "strategicGoal");
+        return { id: r.id };
       }),
 
     update: protectedProcedure
@@ -682,10 +682,10 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
         if (ctx.user.roleId !== 1 && ctx.user.role !== "admin") throw new Error("Only ADFA can create KPIs");
-        const [r] = await db.insert(kpis).values({ ...input, createdById: ctx.user.id });
+        const [r] = await db.insert(kpis).values({ ...input, createdById: ctx.user.id }).returning();
         await db.insert(auditLogs).values({ userId: ctx.user.id, action: "CREATE_KPI", module: "KPIs", details: `Created KPI: ${input.name}` });
-        await broadcastNotification("New KPI Added", `A new KPI was added: ${input.name}`, "INFO", (r as any).insertId, "kpi");
-        return { id: (r as any).insertId };
+        await broadcastNotification("New KPI Added", `A new KPI was added: ${input.name}`, "INFO", r.id, "kpi");
+        return { id: r.id };
       }),
 
     update: protectedProcedure
@@ -762,8 +762,8 @@ export const appRouter = router({
                 unit: "%",
                 status: "ACTIVE",
                 createdById: ctx.user.id,
-              });
-              kpiId = (r as any).insertId;
+              }).returning();
+              kpiId = r.id;
             }
 
             if (!kpiId) {
@@ -844,8 +844,8 @@ export const appRouter = router({
 
         const [r] = await db.insert(kpiAssignments).values({
           ...input, assignedById: ctx.user.id, level: "ADFA_TO_HOD",
-        });
-        const assignId = (r as any).insertId;
+        }).returning();
+        const assignId = r.id;
 
         // Get KPI name
         const kpi = await db.select().from(kpis).where(eq(kpis.id, input.kpiId)).limit(1);
@@ -881,8 +881,8 @@ export const appRouter = router({
         const [r] = await db.insert(kpiAssignments).values({
           ...input, assignedById: ctx.user.id, level: "HOD_TO_STAFF",
           departmentId: input.departmentId ?? ctx.user.departmentId ?? null,
-        });
-        const assignId = (r as any).insertId;
+        }).returning();
+        const assignId = r.id;
 
         const kpi = await db.select().from(kpis).where(eq(kpis.id, input.kpiId)).limit(1);
         const kpiName = kpi[0]?.name ?? "KPI";
@@ -1000,8 +1000,8 @@ export const appRouter = router({
 
         const [r] = await db.insert(kpiData).values({
           ...input, submittedById: ctx.user.id, status: "PENDING",
-        });
-        const dataId = (r as any).insertId;
+        }).returning();
+        const dataId = r.id;
 
         // Update assignment status
         if (input.assignmentId) {
@@ -1133,7 +1133,7 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
-        const updateData: Record<string, unknown> = { status: input.status };
+        const updateData: Record<string, any> = { status: input.status };
         if (input.status === "RESOLVED") { updateData.resolvedById = ctx.user.id; updateData.resolvedAt = new Date(); }
         await db.update(anomalies).set(updateData).where(eq(anomalies.id, input.id));
         const anomaly = await db.select({ detectedForUserId: anomalies.detectedForUserId, description: anomalies.description }).from(anomalies).where(eq(anomalies.id, input.id)).limit(1);
@@ -1292,206 +1292,15 @@ Be concise, professional, and specific to KMFRI's government finance context. Us
         ];
 
         const response = await invokeLLM({ messages });
-                const rawReply = response.choices[0]?.message?.content;
+        const rawReply = response.choices[0]?.message?.content;
         const reply = typeof rawReply === "string" ? rawReply : (Array.isArray(rawReply) ? rawReply.map((p: any) => p.text ?? "").join("") : "I'm sorry, I couldn't process your request. Please try again.");
+
         // Save assistant reply
         await db.insert(aiChats).values({ userId: ctx.user.id, role: "assistant" as const, content: reply });
 
         return { reply };
       }),
-
-    history: protectedProcedure.query(async ({ ctx }) => {
-      const db = await getDb();
-      if (!db) return [];
-      return db.select().from(aiChats)
-        .where(eq(aiChats.userId, ctx.user.id))
-        .orderBy(aiChats.createdAt)
-        .limit(50);
-    }),
-
-    clearHistory: protectedProcedure.mutation(async ({ ctx }) => {
-      const db = await getDb();
-      if (!db) return { success: false };
-      await db.delete(aiChats).where(eq(aiChats.userId, ctx.user.id));
-      return { success: true };
-    }),
   }),
-
-  // ─── Audit Logs ───────────────────────────────────────────────────────────
-  audit: router({
-    list: protectedProcedure.query(async ({ ctx }) => {
-      const db = await getDb();
-      if (!db) return [];
-      if (ctx.user.roleId !== 1 && ctx.user.role !== "admin") throw new Error("Only ADFA can view audit logs");
-      return db.select({
-        id: auditLogs.id, action: auditLogs.action, module: auditLogs.module,
-        details: auditLogs.details, createdAt: auditLogs.createdAt, userName: users.name,
-      })
-        .from(auditLogs)
-        .leftJoin(users, eq(auditLogs.userId, users.id))
-        .orderBy(desc(auditLogs.createdAt))
-        .limit(100);
-    }),
-  }),
-
-  // ─── Leave Management ─────────────────────────────────────────────────────
-  leave: router({
-    submit: protectedProcedure
-      .input((i: any) => i)
-      .mutation(async ({ ctx, input }) => {
-        const db = await getDb();
-        if (!db) throw new Error("Database unavailable");
-        await db.insert(leaveRequests).values({
-          userId: ctx.user.id,
-          leaveType: input.leaveType,
-          startDate: input.startDate,
-          endDate: input.endDate,
-          days: input.days,
-          reason: input.reason,
-          status: "PENDING",
-        });
-        await createNotification(ctx.user.id, "Leave Request Submitted", `Your ${input.leaveType} leave request has been submitted for approval.`, "INFO");
-        return { success: true };
-      }),
-    list: protectedProcedure.query(async ({ ctx }) => {
-      const db = await getDb();
-      if (!db) return [];
-      const isHodOrAdfa = ctx.user.roleId <= 2;
-      if (isHodOrAdfa) {
-        return db.select().from(leaveRequests).where(eq(leaveRequests.status, "PENDING")).orderBy(desc(leaveRequests.createdAt));
-      }
-      return db.select().from(leaveRequests).where(eq(leaveRequests.userId, ctx.user.id)).orderBy(desc(leaveRequests.createdAt));
-    }),
-    approve: protectedProcedure
-      .input((i: any) => i)
-      .mutation(async ({ ctx, input }) => {
-        const db = await getDb();
-        if (!db) throw new Error("Database unavailable");
-        if (ctx.user.roleId > 2) throw new Error("Only HOD/ADFA can approve leave");
-        const leave = await db.select().from(leaveRequests).where(eq(leaveRequests.id, input.id)).limit(1);
-        if (!leave[0]) throw new Error("Leave request not found");
-        await db.update(leaveRequests).set({ status: "APPROVED", approvedById: ctx.user.id, approvalNotes: input.notes }).where(eq(leaveRequests.id, input.id));
-        await createNotification(leave[0].userId, "Leave Approved", `Your ${leave[0].leaveType} leave has been approved.`, "SUCCESS");
-        return { success: true };
-      }),
-    reject: protectedProcedure
-      .input((i: any) => i)
-      .mutation(async ({ ctx, input }) => {
-        const db = await getDb();
-        if (!db) throw new Error("Database unavailable");
-        if (ctx.user.roleId > 2) throw new Error("Only HOD/ADFA can reject leave");
-        const leave = await db.select().from(leaveRequests).where(eq(leaveRequests.id, input.id)).limit(1);
-        if (!leave[0]) throw new Error("Leave request not found");
-        await db.update(leaveRequests).set({ status: "REJECTED", approvedById: ctx.user.id, approvalNotes: input.notes }).where(eq(leaveRequests.id, input.id));
-        await createNotification(leave[0].userId, "Leave Rejected", `Your ${leave[0].leaveType} leave has been rejected. Reason: ${input.notes}`, "WARNING");
-        return { success: true };
-      }),
-    balance: protectedProcedure.query(async ({ ctx }) => {
-      const db = await getDb();
-      if (!db) return [];
-      return db.select().from(leaveBalance).where(eq(leaveBalance.userId, ctx.user.id));
-    }),
-  }),
-
-  // ─── Budget Tracking ──────────────────────────────────────────────────────
-  budget: router({
-    list: protectedProcedure.query(async ({ ctx }) => {
-      const db = await getDb();
-      if (!db) return [];
-      if (ctx.user.roleId !== 1 && ctx.user.role !== "admin") throw new Error("Only ADFA can view budgets");
-      return db.select().from(budgets).orderBy(budgets.fiscalYear);
-    }),
-    byDepartment: protectedProcedure
-      .input((i: any) => i)
-      .query(async ({ ctx, input }) => {
-        const db = await getDb();
-        if (!db) return [];
-        return db.select().from(budgets).where(eq(budgets.departmentId, input.departmentId));
-      }),
-  }),
-
-  // ─── Evidence Portal ──────────────────────────────────────────────────────
-  evidence: router({
-    upload: protectedProcedure
-      .input((i: any) => i)
-      .mutation(async ({ ctx, input }) => {
-        const db = await getDb();
-        if (!db) throw new Error("Database unavailable");
-        await db.insert(evidenceDocuments).values({
-          kpiDataId: input.kpiDataId,
-          assignmentId: input.assignmentId,
-          uploadedById: ctx.user.id,
-          fileName: input.fileName,
-          fileUrl: input.fileUrl,
-          fileType: input.fileType,
-          fileSize: input.fileSize,
-          description: input.description,
-          status: "ACTIVE",
-        });
-        return { success: true };
-      }),
-    list: protectedProcedure
-      .input((i: any) => i)
-      .query(async ({ ctx, input }) => {
-        const db = await getDb();
-        if (!db) return [];
-        if (input.kpiDataId) {
-          return db.select().from(evidenceDocuments).where(eq(evidenceDocuments.kpiDataId, input.kpiDataId));
-        }
-        if (input.assignmentId) {
-          return db.select().from(evidenceDocuments).where(eq(evidenceDocuments.assignmentId, input.assignmentId));
-        }
-        return [];
-      }),
-    delete: protectedProcedure
-      .input((i: any) => i)
-      .mutation(async ({ ctx, input }) => {
-        const db = await getDb();
-        if (!db) throw new Error("Database not available");
-        await db.delete(evidenceDocuments).where(eq(evidenceDocuments.id, input.id));
-        return { success: true };
-      }),
-  }),
-
-  // ─── Export Reports ───────────────────────────────────────────────────────
-  export: router({
-    kpiReport: protectedProcedure
-      .input((i: any) => i)
-      .query(async ({ ctx, input }) => {
-        const db = await getDb();
-        if (!db) return null;
-        const assignments = await db.select({
-          kpiName: kpis.name,
-          targetValue: kpiAssignments.targetValue,
-          actualValue: kpiData.actualValue,
-          period: kpiData.period,
-          status: kpiData.status,
-          perspective: kpis.perspective,
-        })
-          .from(kpiAssignments)
-          .leftJoin(kpis, eq(kpiAssignments.kpiId, kpis.id))
-          .leftJoin(kpiData, eq(kpiAssignments.id, kpiData.assignmentId))
-          .where(eq(kpiAssignments.assignedToId, ctx.user.id))
-          .orderBy(kpiData.period);
-        return { data: assignments, format: input.format };
-      }),
-    dashboardReport: protectedProcedure
-      .input((i: any) => i)
-      .query(async ({ ctx, input }) => {
-        const db = await getDb();
-        if (!db) return null;
-        const stats = await db.select({
-          totalKpis: count(kpis.id),
-          totalAssignments: count(kpiAssignments.id),
-          approvedCount: count(kpiData.id),
-        })
-          .from(kpis)
-          .leftJoin(kpiAssignments, eq(kpis.id, kpiAssignments.kpiId))
-          .leftJoin(kpiData, eq(kpiAssignments.id, kpiData.assignmentId));
-        return { data: stats, format: input.format };
-      }),
-  }),
-
 });
 
 export type AppRouter = typeof appRouter;

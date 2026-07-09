@@ -1,14 +1,19 @@
 import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/node-postgres";
+import pg from "pg";
 import { users, type InsertUser } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
-
+console.log(process.env.DATABASE_URL, "DATABASE_URL");
 export async function getDb() {
+
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      const pool = new pg.Pool({
+        connectionString: process.env.DATABASE_URL,
+      });
+      _db = drizzle(pool);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -39,7 +44,7 @@ export async function upsertUser(user: {
       name: user.name ?? "Unknown",
       email: user.email ?? `${user.openId}@kmfri.go.ke`,
     };
-    const updateSet: Record<string, unknown> = {};
+    const updateSet: Record<string, any> = {};
 
     if (user.name !== undefined) { values.name = user.name ?? "Unknown"; updateSet.name = values.name; }
     if (user.email !== undefined) { values.email = user.email ?? `${user.openId}@kmfri.go.ke`; updateSet.email = values.email; }
@@ -59,7 +64,12 @@ export async function upsertUser(user: {
 
     if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
 
-    await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
+    await db.insert(users)
+      .values(values)
+      .onConflictDoUpdate({
+        target: users.openId,
+        set: updateSet,
+      });
   } catch (error) {
     console.error("[Database] Failed to upsert user:", error);
     throw error;

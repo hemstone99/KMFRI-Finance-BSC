@@ -41,7 +41,7 @@ export default function Login() {
           <div className="flex justify-center mb-8">
             <div className="rounded-[2rem] border border-white/15 bg-white/10 p-6 backdrop-blur-xl shadow-2xl">
               <img
-                src="/kmfri-logo.svg"
+                src="/logo.jpg"
                 alt="KMFRI Logo"
                 className="h-14 max-w-[180px] w-auto object-contain"
               />
@@ -82,7 +82,7 @@ export default function Login() {
           {/* Mobile Logo */}
           <div className="lg:hidden text-center mb-8">
             <img
-              src="/kmfri-logo.svg"
+              src="/logo.jpg"
               alt="KMFRI"
               className="h-10 max-w-[160px] w-auto object-contain mx-auto mb-3"
             />

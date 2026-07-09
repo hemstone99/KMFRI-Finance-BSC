@@ -58,7 +58,7 @@ interface KMFRILayoutProps {
   user: any;
 }
 
-const logoSrc = "/kmfri-logo.svg";
+const logoSrc = "/logo.jpg";
 
 export default function KMFRILayout({ children, user }: KMFRILayoutProps) {
   const [location] = useLocation();

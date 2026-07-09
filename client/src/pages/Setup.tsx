@@ -73,7 +73,7 @@ export default function Setup() {
         <div className="relative z-10 w-full max-w-md rounded-[2rem] border border-white/10 bg-slate-950/85 p-10 shadow-2xl backdrop-blur-xl text-white">
           <div className="flex justify-center mb-8">
             <img
-              src="/kmfri-logo.svg"
+              src="/logo.jpg"
               alt="KMFRI Logo"
               className="h-16 max-w-[200px] w-auto object-contain"
             />
@@ -108,7 +108,7 @@ export default function Setup() {
       <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
         <div className="w-full max-w-md">
           <div className="lg:hidden text-center mb-8">
-            <img src="/kmfri-logo.svg" alt="KMFRI" className="h-10 max-w-[160px] w-auto object-contain mx-auto mb-3" />
+            <img src="/logo.jpg" alt="KMFRI" className="h-10 max-w-[160px] w-auto object-contain mx-auto mb-3" />
             <h1 className="text-white text-2xl font-bold font-['Poppins']">KMFRI BSC Setup</h1>
           </div>
 
